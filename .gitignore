@@ -1,0 +1,12 @@
+#Env files
+**/__pycache__*
+*.env**
+
+#Ignore csv data files
+*.csv
+*.log
+
+#folders
+**/venv*
+**/env*
+**/docs*
