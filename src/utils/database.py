@@ -1,20 +1,60 @@
+# database.py
+from config.config import MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DATABASE
 from langchain_community.utilities import SQLDatabase
-from config import MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DATABASE
 import os
-from typing import List, Optional
+from typing import List, Dict, Optional
 from sqlalchemy import text, create_engine, inspect
 import logging
+import mysql.connector
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def test_database_connection() -> Dict:
+    """Test database connection and return status"""
+    try:
+        # Primero probar conexión básica
+        conn = mysql.connector.connect(
+            host=MYSQL_HOST,
+            user=MYSQL_USER,
+            password=MYSQL_PASSWORD,
+            database=MYSQL_DATABASE
+        )
+        
+        if conn.is_connected():
+            # Si la conexión es exitosa, obtener las tablas
+            cursor = conn.cursor()
+            cursor.execute("SHOW TABLES")
+            tables = [table[0] for table in cursor.fetchall()]
+            
+            cursor.close()
+            conn.close()
+            
+            return {
+                "success": True,
+                "tables": tables,
+                "error": None
+            }
+    except Exception as e:
+        logger.error(f"Database connection error: {str(e)}")
+        return {
+            "success": False,
+            "tables": [],
+            "error": str(e)
+        }
+
 # Construir el URI de conexión para MySQL
 mysql_uri = f'mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:3306/{MYSQL_DATABASE}'
 
-# Conectar a la base de datos MySQL
-db = SQLDatabase.from_uri(mysql_uri)
-engine = create_engine(mysql_uri)
+try:
+    # Inicializar conexiones
+    db = SQLDatabase.from_uri(mysql_uri)
+    engine = create_engine(mysql_uri)
+except Exception as e:
+    logger.error(f"Error initializing database connections: {str(e)}")
+    db = None
+    engine = None
 
 def get_ignored_tables() -> List[str]:
     """Get list of tables to ignore from environment variable"""
@@ -24,6 +64,9 @@ def get_ignored_tables() -> List[str]:
 def get_all_tables() -> List[str]:
     """Get all tables from the database using SQLAlchemy inspector"""
     try:
+        if not engine:
+            raise Exception("Database engine not initialized")
+        
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         logger.info(f"Found tables: {tables}")
@@ -35,6 +78,9 @@ def get_all_tables() -> List[str]:
 def get_schema(input_data: Optional[dict] = None) -> str:
     """Get schema information for all tables except ignored ones"""
     try:
+        if not db:
+            raise Exception("Database connection not initialized")
+            
         all_tables = get_all_tables()
         ignored_tables = get_ignored_tables()
         
@@ -58,6 +104,9 @@ def get_schema(input_data: Optional[dict] = None) -> str:
 def run_query(query: str) -> List[tuple]:
     """Execute SQL query"""
     try:
+        if not db:
+            raise Exception("Database connection not initialized")
+            
         result = db.run(query)
         logger.info(f"Query executed successfully")
         return result
