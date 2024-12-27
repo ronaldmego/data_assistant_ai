@@ -8,6 +8,8 @@ import logging
 from .database import get_schema, run_query, get_all_tables
 from config.config import OPENAI_API_KEY
 import pandas as pd
+from .llm_provider import LLMProvider
+import streamlit as st
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +18,17 @@ if not OPENAI_API_KEY:
     logger.error("OpenAI API key not found in environment variables")
     raise ValueError("OpenAI API key is required")
 
-llm = ChatOpenAI(
-    model="gpt-4",
-    temperature=0.7,
-    openai_api_key=OPENAI_API_KEY
-)
+def get_llm():
+    """Get the configured LLM based on session state"""
+    provider = st.session_state.get('llm_provider', 'openai')
+    model_name = st.session_state.get('llm_model_name')
+    temperature = st.session_state.get('llm_temperature', 0.7)
+    
+    return LLMProvider.get_llm(
+        provider=provider,
+        model_name=model_name,
+        temperature=temperature
+    )
 
 def generate_sql_chain():
     """Generate SQL query from natural language"""
@@ -52,6 +60,7 @@ Write only the SQL query without any additional text:"""
         }
     
     try:
+        llm = get_llm()  # Get the configured LLM
         sql_chain = (
             RunnablePassthrough()
             | format_input

@@ -30,7 +30,9 @@ def install_requirements():
         "matplotlib",
         "seaborn",
         "faiss-cpu",
-        "pypdf"
+        "pypdf",
+        "requests",
+        "langchain-community[ollama]"
     ]
     
     for package in packages:

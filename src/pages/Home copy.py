@@ -66,7 +66,7 @@ try:
     from src.services.rag_service import initialize_rag_components
     from src.components.debug_panel import display_debug_section
     from src.components.history_view import display_history
-    from src.components.query_interface import display_query_interface, display_table_selection, display_model_settings
+    from src.components.query_interface import display_query_interface, display_table_selection
     from src.layouts.footer import display_footer
     from src.layouts.header import display_header
 
@@ -78,6 +78,11 @@ except Exception as e:
 
 def main():
     try:
+        # Verificar API key
+        if not st.session_state.get('OPENAI_API_KEY'):
+            st.error("OpenAI API Key not found. Please check your .env file.")
+            return
+
         # Inicializar RAG
         initialize_rag_components()
         
@@ -86,17 +91,15 @@ def main():
         
         with tab1:
             # Header principal
-            display_header()
-            
-            # Sidebar - Model Settings
-            st.sidebar.markdown("---")
-            
-            # Verificar API key solo si se usa OpenAI
-            if st.session_state.get('llm_provider') == 'openai' and not st.session_state.get('OPENAI_API_KEY'):
-                st.sidebar.error("⚠️ OpenAI API Key not found. Ollama is recommended.")
-            
-            display_model_settings()
-            st.sidebar.markdown("---")
+            st.markdown(
+                """
+                <div style='text-align: center;'>
+                    <h1>🤖 Quipu AI, your Data Analyst Assistant</h1>
+                    <p style='font-size: 1.2em;'>Analyze your data with natural language queries | Analiza tus datos con preguntas en lenguaje natural</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
             
             # Mostrar estado de conexión en sidebar
             connection_status = test_database_connection()

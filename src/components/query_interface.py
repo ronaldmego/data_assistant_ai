@@ -6,6 +6,7 @@ from src.services.data_processing import handle_query_and_response
 from src.components.visualization import create_visualization
 from src.utils.database import get_all_tables
 from typing import List
+from src.utils.llm_provider import LLMProvider
 
 def display_table_selection() -> List[str]:
     """Display table selection interface and return selected tables"""
@@ -142,3 +143,56 @@ def process_query(question: str, selected_tables: List[str]):
         except Exception as e:
             st.error(f"Error processing query: {str(e)}")
             st.info("Please check your database connection and API keys.")
+
+def display_model_settings():
+    """Display LLM model selection and configuration in sidebar"""
+    st.sidebar.markdown("## Model Settings")
+    
+    # Check Ollama availability
+    ollama_available = LLMProvider.check_ollama_availability()
+    
+    if not ollama_available:
+        st.sidebar.warning("⚠️ Ollama service not detected. Make sure Ollama is running locally.")
+    
+    # Provider selection
+    provider = st.sidebar.selectbox(
+        "Select Provider",
+        options=['openai', 'ollama'],
+        index=0 if st.session_state.get('llm_provider') == 'openai' else 1,
+        key='provider_select'
+    )
+    st.session_state['llm_provider'] = provider
+    
+    # Get available models for the selected provider
+    available_models = LLMProvider.list_available_models(provider)
+    
+    # Model selection
+    if provider == 'openai':
+        default_model = 'gpt-4'
+    else:
+        default_model = 'llama3:8b-instruct-q8_0'
+    
+    model_name = st.sidebar.selectbox(
+        "Select Model",
+        options=available_models,
+        index=available_models.index(default_model) if default_model in available_models else 0,
+        key='model_select'
+    )
+    st.session_state['llm_model_name'] = model_name
+    
+    # Temperature setting
+    temperature = st.sidebar.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.7,
+        step=0.1,
+        key='temperature_slider'
+    )
+    st.session_state['llm_temperature'] = temperature
+    
+    # Display current configuration
+    with st.sidebar.expander("Current Configuration"):
+        st.write(f"Provider: {provider}")
+        st.write(f"Model: {model_name}")
+        st.write(f"Temperature: {temperature}")

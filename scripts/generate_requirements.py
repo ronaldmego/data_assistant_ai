@@ -18,7 +18,9 @@ packages = [
     "matplotlib",
     "seaborn",
     "faiss-cpu",
-    "pypdf"
+    "pypdf",
+    "requests",
+    "langchain-community[ollama]"
 ]
 
 # Generar requirements.txt
