@@ -1,4 +1,5 @@
 # src/services/data_processing.py
+
 import streamlit as st
 import pandas as pd
 import logging
@@ -13,13 +14,7 @@ def handle_query_and_response(question: str, selected_tables: List[str]) -> Dict
         if st.session_state.get('rag_initialized') and st.session_state.get('rag_enabled', True):
             # Usar RAG solo si está habilitado
             rag_response = process_query_with_rag(question, selected_tables)
-            
-            # Extraer el query y el contexto del RAG
-            query = rag_response.get('query', '')
-            context_used = rag_response.get('context_used', [])
-            
-            # Guardar el contexto en session_state
-            st.session_state['last_context'] = context_used
+            query = rag_response['query']
             
             # Obtener respuesta completa usando el query mejorado por RAG
             full_chain = generate_response_chain(generate_sql_chain())
@@ -30,8 +25,11 @@ def handle_query_and_response(question: str, selected_tables: List[str]) -> Dict
             })
             
             # Añadir indicador RAG
-            full_response = "🧠 " + str(full_response)
+            full_response = "🧠 " + full_response
             
+            # Guardar contexto usado
+            if 'context_used' in rag_response:
+                st.session_state['last_context'] = rag_response['context_used']
         else:
             # Proceso original sin RAG
             sql_chain = generate_sql_chain()
@@ -48,7 +46,7 @@ def handle_query_and_response(question: str, selected_tables: List[str]) -> Dict
 
         # Procesar visualización
         visualization_data = None
-        if isinstance(full_response, str) and 'DATA:' in full_response:
+        if 'DATA:' in full_response:
             try:
                 main_response = full_response.split("DATA:")[0]
                 data_str = full_response.split("DATA:")[1].strip()
@@ -68,8 +66,7 @@ def handle_query_and_response(question: str, selected_tables: List[str]) -> Dict
             'query': query,
             'response': full_response,
             'visualization_data': visualization_data,
-            'selected_tables': selected_tables,
-            'rag_context': st.session_state.get('last_context', [])
+            'selected_tables': selected_tables
         }
         
         # Mantener el logging
@@ -80,8 +77,7 @@ def handle_query_and_response(question: str, selected_tables: List[str]) -> Dict
             'full_response': full_response,
             'has_visualization': visualization_data is not None,
             'rag_enabled': st.session_state.get('rag_initialized', False),
-            'selected_tables': selected_tables,
-            'rag_context': st.session_state.get('last_context', [])
+            'selected_tables': selected_tables
         })
         
         return response_data

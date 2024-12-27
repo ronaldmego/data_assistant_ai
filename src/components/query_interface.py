@@ -123,6 +123,16 @@ def process_query(question: str, selected_tables: List[str]):
                             sql_expander = st.expander("🔍 SQL Query", expanded=False)
                             with sql_expander:
                                 st.code(response.get('query', ''), language='sql')
+
+                        # RAG Context section
+                        if response.get('rag_context'):
+                            rag_expander = st.expander("📚 Documents Used for Analysis", expanded=False)
+                            with rag_expander:
+                                st.markdown("The following document excerpts were used to enhance the analysis:")
+                                for idx, ctx in enumerate(response['rag_context'], 1):
+                                    st.markdown(f"**Document {idx}:**")
+                                    st.markdown(f"```\n{ctx[:300]}...\n```")
+                                    st.markdown("---")
                 
                 # Add to history
                 if 'history' not in st.session_state:
