@@ -77,8 +77,17 @@ def initialize_rag_components():
             logger.error(f"Error initializing RAG components: {e}")
             st.session_state['rag_initialized'] = False
 
-def process_query_with_rag(question: str) -> Dict:
-    """Process query using RAG enhancement"""
+def process_query_with_rag(question: str, selected_tables: Optional[List[str]] = None) -> Dict:
+    """
+    Process query using RAG enhancement
+    
+    Parameters:
+    -----------
+    question : str
+        The user's question
+    selected_tables : Optional[List[str]]
+        List of selected tables to query. If None, uses all available tables.
+    """
     try:
         if not st.session_state.get('rag_initialized'):
             return {'question': question, 'error': 'RAG not initialized'}
@@ -101,14 +110,18 @@ def process_query_with_rag(question: str) -> Dict:
         Based on:
         - Previous conversation: {chat_history}
         - Context: {[doc.page_content for doc in context]}
+        - Selected tables: {selected_tables if selected_tables else 'all tables'}
         - Question: {question}
         
-        Generate an appropriate SQL query.
+        Generate an appropriate SQL query using only the selected tables.
         """
         
         # Generate and execute query
         sql_chain = generate_sql_chain()
-        query = sql_chain.invoke({"question": enhanced_prompt})
+        query = sql_chain.invoke({
+            "question": enhanced_prompt,
+            "selected_tables": selected_tables
+        })
         
         # Update memory if available
         if memory:

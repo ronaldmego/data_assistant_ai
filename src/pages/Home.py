@@ -47,6 +47,8 @@ def initialize_session_state():
             'host': MYSQL_HOST,
             'database': MYSQL_DATABASE
         }
+    if 'selected_tables' not in st.session_state:
+        st.session_state['selected_tables'] = []
 
 # Initialize session state first
 initialize_session_state()
@@ -59,7 +61,7 @@ try:
     from src.services.rag_service import initialize_rag_components
     from src.components.debug_panel import display_debug_section
     from src.components.history_view import display_history
-    from src.components.query_interface import display_query_interface
+    from src.components.query_interface import display_query_interface, display_table_selection
     from src.layouts.footer import display_footer
     from src.layouts.header import display_header
 
@@ -68,32 +70,6 @@ except Exception as e:
     logger.error(f"Failed to import required components: {str(e)}")
     st.error(f"Failed to import required components: {str(e)}")
     st.stop()
-
-def display_table_selection():
-    """Display table selection interface"""
-    try:
-        tables = get_all_tables()
-        if not tables:
-            st.sidebar.error("No tables found in database.")
-            return []
-        
-        st.sidebar.write("Select tables to query:")
-        selected_tables = []
-        
-        for table in tables:
-            if st.sidebar.checkbox(f"{table}", value=True, key=f"table_{table}"):
-                selected_tables.append(table)
-                
-        if selected_tables:
-            st.sidebar.success(f"Selected {len(selected_tables)} tables")
-        else:
-            st.sidebar.warning("No tables selected")
-            
-        return selected_tables
-    except Exception as e:
-        logger.error(f"Error in table selection: {str(e)}")
-        st.sidebar.error("Error loading tables. Check your database connection.")
-        return []
 
 def main():
     try:
@@ -128,22 +104,24 @@ def main():
                     st.sidebar.info(f"Available tables: {len(connection_status['tables'])}")
             else:
                 st.sidebar.error(f"❌ Connection error: {connection_status['error']}")
+                return
             
             # Selección de tablas en el sidebar
             selected_tables = display_table_selection()
             
-            if not selected_tables:
+            # Mostrar la interfaz principal solo si hay tablas seleccionadas
+            if selected_tables:
+                st.session_state['selected_tables'] = selected_tables
+                # Interfaz principal de consultas
+                st.markdown("---")  # Separador visual
+                display_query_interface()
+                
+                # Mostrar historial si existe
+                if st.session_state.get('history', []):
+                    st.markdown("---")
+                    display_history()
+            else:
                 st.info("Please select at least one table from the sidebar to start querying.")
-                return
-            
-            # Interfaz principal de consultas
-            st.markdown("---")  # Separador visual
-            display_query_interface()
-            
-            # Mostrar historial si existe
-            if st.session_state.get('history', []):
-                st.markdown("---")
-                display_history()
         
         with tab2:
             display_debug_section()

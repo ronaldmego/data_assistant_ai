@@ -8,7 +8,6 @@ import logging
 from .database import get_schema, run_query, get_all_tables
 from config.config import OPENAI_API_KEY
 import pandas as pd
-from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +24,13 @@ llm = ChatOpenAI(
 
 def generate_sql_chain():
     """Generate SQL query from natural language"""
-    template = """Based on the provided table schema, analyze if the user's question requires a specific SQL query.
-If it's a greeting or general question, return this SQL to get an overview:
-"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = DATABASE()"
+    template = """Based on the provided table schema for the selected tables, analyze if the user's question requires a specific SQL query.
+If it's a greeting or general question, return this SQL to get an overview of the selected tables:
+"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name IN ({table_list})"
 
-If it's a specific analytical question, write a SQL query that answers it.
+If it's a specific analytical question, write a SQL query that answers it using only the selected tables.
 
-Schema:
+Selected Tables Schema:
 {schema}
 
 Question: {question}
@@ -40,9 +39,22 @@ Write only the SQL query without any additional text:"""
 
     prompt = ChatPromptTemplate.from_template(template)
     
+    def format_input(vars: Dict[str, Any]) -> Dict[str, Any]:
+        """Format input for the prompt template"""
+        selected_tables = vars.get("selected_tables", [])
+        schema = get_schema(selected_tables)
+        # Format table list for SQL IN clause
+        table_list = "'" + "','".join(selected_tables) + "'" if selected_tables else "''"
+        return {
+            "schema": schema,
+            "question": vars["question"],
+            "table_list": table_list
+        }
+    
     try:
         sql_chain = (
-            RunnablePassthrough.assign(schema=get_schema)
+            RunnablePassthrough()
+            | format_input
             | prompt
             | llm.bind(stop=["\nSQLResult:"])
             | StrOutputParser()
@@ -59,6 +71,7 @@ Always maintain a professional, analytical tone and focus on data possibilities.
 
 Context:
 - Question: {question}
+- Selected Tables: {selected_tables}
 - Available Schema: {schema}
 - SQL Query Used: {query}
 - Query Results: {response}
@@ -68,15 +81,15 @@ Context:
 Response Guidelines:
 1. Greetings/General Questions:
    - Briefly acknowledge (1 sentence max)
-   - Immediately transition to data overview
-   - Share 2-3 specific insights from the schema
-   - Suggest concrete analytical questions
+   - Share insights about selected tables
+   - Focus on data overview for selected tables
+   - Suggest concrete analytical questions for these tables
    
 2. Specific Analysis Questions:
    - Provide direct answer with numerical details
    - Add context and patterns
    - Compare with related metrics when possible
-   - Suggest follow-up analyses
+   - Suggest follow-up analyses within selected tables
 
 Important:
 - Always be data-centric and analytical
@@ -92,7 +105,7 @@ DATA:[("category1",number1),("category2",number2),...]"""
         """Process response before sending to LLM"""
         try:
             # Get schema insights and suggestions
-            schema_data = get_default_insights()
+            schema_data = get_default_insights(vars.get("selected_tables", []))
             schema_suggestions = generate_schema_suggestions(schema_data)
             
             # Add to vars
@@ -113,7 +126,7 @@ DATA:[("category1",number1),("category2",number2),...]"""
     try:
         full_chain = (
             RunnablePassthrough.assign(query=sql_chain).assign(
-                schema=get_schema,
+                schema=lambda vars: get_schema(vars.get("selected_tables", [])),
                 response=lambda vars: run_query(vars["query"])
             )
             | process_response
@@ -126,18 +139,14 @@ DATA:[("category1",number1),("category2",number2),...]"""
         logger.error(f"Error generating response chain: {str(e)}")
         raise
 
-def get_default_insights() -> List[Dict]:
+def get_default_insights(selected_tables: List[str]) -> List[Dict]:
     """
-    Obtiene información básica sobre las tablas disponibles
+    Obtiene información básica sobre las tablas seleccionadas
     y genera un resumen inicial
     """
     try:
-        schema = get_schema()
-        tables = get_all_tables()
-        
-        # Query para contar columnas por tabla
         columns_data = []
-        for table in tables:
+        for table in selected_tables:
             try:
                 query = f"""
                 SELECT 
@@ -155,7 +164,6 @@ def get_default_insights() -> List[Dict]:
                 """
                 result = run_query(query)
                 if result and len(result) > 0:
-                    # Asegurarse de que tenemos ambos valores
                     row = result[0]
                     count = row[0] if len(row) > 0 else 0
                     columns = row[1] if len(row) > 1 else ''
@@ -166,7 +174,6 @@ def get_default_insights() -> List[Dict]:
                         "columns": columns.split(',') if columns else []
                     })
                 else:
-                    # Añadir entrada con valores por defecto si no hay resultados
                     columns_data.append({
                         "table": table,
                         "count": 0,
@@ -174,7 +181,6 @@ def get_default_insights() -> List[Dict]:
                     })
             except Exception as e:
                 logger.error(f"Error getting info for table {table}: {str(e)}")
-                # Añadir entrada con valores por defecto en caso de error
                 columns_data.append({
                     "table": table,
                     "count": 0,

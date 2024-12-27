@@ -1,4 +1,5 @@
-# database.py
+# src/utils/database.py
+
 from config.config import MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DATABASE
 from langchain_community.utilities import SQLDatabase
 import os
@@ -7,8 +8,6 @@ from sqlalchemy import text, create_engine, inspect
 import logging
 import mysql.connector
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def test_database_connection() -> Dict:
@@ -75,27 +74,30 @@ def get_all_tables() -> List[str]:
         logger.error(f"Error getting tables: {str(e)}")
         return []
 
-def get_schema(input_data: Optional[dict] = None) -> str:
-    """Get schema information for all tables except ignored ones"""
+def get_schema(selected_tables: Optional[List[str]] = None) -> str:
+    """
+    Get schema information for selected tables
+    
+    Parameters:
+    -----------
+    selected_tables : Optional[List[str]]
+        List of table names to include in schema. If None, uses all available tables.
+    """
     try:
         if not db:
             raise Exception("Database connection not initialized")
             
-        all_tables = get_all_tables()
-        ignored_tables = get_ignored_tables()
+        # Si no se proporcionan tablas, usar todas las disponibles
+        if not selected_tables:
+            all_tables = get_all_tables()
+            ignored_tables = get_ignored_tables()
+            selected_tables = [table for table in all_tables if table not in ignored_tables]
         
-        logger.info(f"All tables: {all_tables}")
-        logger.info(f"Ignored tables: {ignored_tables}")
-        
-        # Filter out ignored tables
-        tables_to_use = [table for table in all_tables if table not in ignored_tables]
-        logger.info(f"Tables to use: {tables_to_use}")
-        
-        if not tables_to_use:
+        if not selected_tables:
             return "No tables available for querying."
         
-        # Get schema info for remaining tables
-        schema_info = db.get_table_info(table_names=tables_to_use)
+        logger.info(f"Getting schema for tables: {selected_tables}")
+        schema_info = db.get_table_info(table_names=selected_tables)
         return schema_info
     except Exception as e:
         logger.error(f"Error getting schema information: {str(e)}")
