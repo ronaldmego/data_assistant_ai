@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import logging
 from ..utils.rag_utils import initialize_embeddings, load_documents, create_vector_store
 from ..utils.database import get_all_tables
-from ..utils.chatbot import generate_sql_chain
+from ..utils.chatbot.chains import ChainBuilder
 from langchain.memory import ConversationBufferMemory
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 
@@ -117,7 +117,7 @@ def process_query_with_rag(question: str, selected_tables: Optional[List[str]] =
         """
         
         # Generate and execute query
-        sql_chain = generate_sql_chain()
+        sql_chain = ChainBuilder.build_sql_chain()
         query = sql_chain.invoke({
             "question": enhanced_prompt,
             "selected_tables": selected_tables

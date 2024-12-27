@@ -61,7 +61,7 @@ def initialize_session_state():
 try:
     # Import components
     from src.utils.database import get_all_tables, test_database_connection
-    from src.utils.chatbot import generate_sql_chain, generate_response_chain
+    from src.utils.chatbot.chains import ChainBuilder
     from src.services.data_processing import handle_query_and_response
     from src.services.rag_service import initialize_rag_components
     from src.components.debug_panel import display_debug_section
