@@ -13,11 +13,6 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
-# Verificar que la API key existe
-if not OPENAI_API_KEY:
-    logger.error("OpenAI API key not found in environment variables")
-    raise ValueError("OpenAI API key is required")
-
 def get_llm():
     """Get the configured LLM based on session state"""
     provider = st.session_state.get('llm_provider', 'openai')
@@ -51,7 +46,6 @@ Write only the SQL query without any additional text:"""
         """Format input for the prompt template"""
         selected_tables = vars.get("selected_tables", [])
         schema = get_schema(selected_tables)
-        # Format table list for SQL IN clause
         table_list = "'" + "','".join(selected_tables) + "'" if selected_tables else "''"
         return {
             "schema": schema,
@@ -60,7 +54,13 @@ Write only the SQL query without any additional text:"""
         }
     
     try:
-        llm = get_llm()  # Get the configured LLM
+        # Obtener el LLM configurado
+        llm = LLMProvider.get_llm(
+            provider=st.session_state.get('llm_provider', 'openai'),
+            model_name=st.session_state.get('llm_model_name'),
+            temperature=st.session_state.get('llm_temperature', 0.7)
+        )
+        
         sql_chain = (
             RunnablePassthrough()
             | format_input
@@ -111,17 +111,12 @@ DATA:[("category1",number1),("category2",number2),...]"""
     prompt_response = ChatPromptTemplate.from_template(template_response)
     
     def process_response(vars: Dict[str, Any]) -> Dict[str, Any]:
-        """Process response before sending to LLM"""
         try:
-            # Get schema insights and suggestions
             schema_data = get_default_insights(vars.get("selected_tables", []))
             schema_suggestions = generate_schema_suggestions(schema_data)
-            
-            # Add to vars
             vars["insights"] = schema_data
             vars["suggestions"] = schema_suggestions
             
-            # Process response
             if isinstance(vars["response"], str):
                 try:
                     vars["response"] = eval(vars["response"])
@@ -133,6 +128,13 @@ DATA:[("category1",number1),("category2",number2),...]"""
             return vars
 
     try:
+        # Obtener el LLM configurado
+        llm = LLMProvider.get_llm(
+            provider=st.session_state.get('llm_provider', 'openai'),
+            model_name=st.session_state.get('llm_model_name'),
+            temperature=st.session_state.get('llm_temperature', 0.7)
+        )
+        
         full_chain = (
             RunnablePassthrough.assign(query=sql_chain).assign(
                 schema=lambda vars: get_schema(vars.get("selected_tables", [])),
@@ -217,9 +219,12 @@ Generate 3 basic analytical questions that could be answered with this data. Foc
 Return just the numbered list in Spanish."""
 
     prompt = ChatPromptTemplate.from_template(template)
-    chain = prompt | llm | StrOutputParser()
     
     try:
+        # Obtener el LLM configurado
+        llm = get_llm()
+        
+        chain = prompt | llm | StrOutputParser()
         suggestions = chain.invoke({"schema_data": str(schema_data)})
         return suggestions
     except Exception as e:
@@ -366,20 +371,32 @@ Craft a response that:
 Response in Spanish:"""
     
     prompt = ChatPromptTemplate.from_template(template)
-    chain = prompt | llm | StrOutputParser()
     
-    response = chain.invoke({
-        "question": question,
-        "schema_overview": format_schema_overview(schema_data),
-        "suggestions": suggestions
-    })
-    
-    return {
-        'question': question,
-        'response': response,
-        'query': None,
-        'visualization_data': None
-    }
+    try:
+        # Obtener el LLM configurado
+        llm = get_llm()
+        
+        chain = prompt | llm | StrOutputParser()
+        response = chain.invoke({
+            "question": question,
+            "schema_overview": format_schema_overview(schema_data),
+            "suggestions": suggestions
+        })
+        
+        return {
+            'question': question,
+            'response': response,
+            'query': None,
+            'visualization_data': None
+        }
+    except Exception as e:
+        logger.error(f"Error in handle_conversational_response: {str(e)}")
+        return {
+            'question': question,
+            'response': "Lo siento, hubo un error al procesar tu consulta conversacional.",
+            'query': None,
+            'visualization_data': None
+        }
 
 def format_schema_overview(schema_data: List[Dict]) -> str:
     """

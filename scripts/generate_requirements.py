@@ -20,7 +20,8 @@ packages = [
     "faiss-cpu",
     "pypdf",
     "requests",
-    "langchain-community[ollama]"
+    "langchain-community[ollama]",
+    "langchain_ollama"
 ]
 
 # Generar requirements.txt
