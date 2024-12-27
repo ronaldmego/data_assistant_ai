@@ -16,44 +16,40 @@ def display_table_selection() -> List[str]:
             st.sidebar.error("No tables found in database.")
             return []
         
-        st.sidebar.write("Select tables to query:")
+        st.sidebar.write("📊 Select tables to query:")
         
-        # Agregar botones para seleccionar/deseleccionar todo
+        # Crear dos columnas para los botones de selección
         col1, col2 = st.sidebar.columns(2)
         with col1:
             if st.button("Select All"):
-                for table in tables:
-                    st.session_state[f"table_{table}"] = True
+                st.session_state['selected_tables'] = tables
         with col2:
-            if st.button("Deselect All"):
-                for table in tables:
-                    st.session_state[f"table_{table}"] = False
+            if st.button("Clear All"):
+                st.session_state['selected_tables'] = []
+
+        # Inicializar selected_tables en session_state si no existe
+        if 'selected_tables' not in st.session_state:
+            st.session_state['selected_tables'] = []
+
+        # Multiselect con los nombres originales de las tablas
+        selected_tables = st.sidebar.multiselect(
+            "Available Tables:",
+            options=sorted(tables, reverse=True),  # Ordenado de más reciente a más antiguo
+            default=st.session_state['selected_tables'],
+            key='table_selector'
+        )
         
-        selected_tables = []
-        for table in tables:
-            # Usar session_state para mantener el estado de las selecciones
-            if f"table_{table}" not in st.session_state:
-                st.session_state[f"table_{table}"] = False
-                
-            if st.sidebar.checkbox(
-                f"{table}",
-                value=st.session_state[f"table_{table}"],
-                key=f"select_{table}"
-            ):
-                selected_tables.append(table)
-                st.session_state[f"table_{table}"] = True
-            else:
-                st.session_state[f"table_{table}"] = False
-                
-        # Guardar las tablas seleccionadas en session_state
+        # Guardar la selección en session_state
         st.session_state['selected_tables'] = selected_tables
-                
+        
+        # Mostrar contador de selección
         if selected_tables:
-            st.sidebar.success(f"Selected {len(selected_tables)} tables")
+            st.sidebar.success(f"✅ Selected {len(selected_tables)} tables")
         else:
-            st.sidebar.warning("No tables selected")
+            st.sidebar.warning("⚠️ No tables selected")
             
         return selected_tables
+        
     except Exception as e:
         st.sidebar.error(f"Error in table selection: {str(e)}")
         return []

@@ -13,6 +13,21 @@ class ChainBuilder:
     """Handles the creation and configuration of LangChain chains"""
     
     @staticmethod
+    def _clean_sql_query(query: str) -> str:
+        """Clean SQL query from markdown formatting and other artifacts"""
+        # Remove markdown SQL markers
+        query = query.replace('```sql', '').replace('```', '')
+        
+        # Remove any leading/trailing whitespace
+        query = query.strip()
+        
+        # Ensure the query ends with a semicolon if it doesn't have one
+        if not query.strip().endswith(';'):
+            query += ';'
+        
+        return query
+
+    @staticmethod
     def build_sql_chain():
         """Build the SQL generation chain"""
         try:
@@ -29,6 +44,7 @@ class ChainBuilder:
                 | prompt
                 | llm.bind(stop=["\nSQLResult:"])
                 | StrOutputParser()
+                | ChainBuilder._clean_sql_query  # Añadimos el paso de limpieza
             )
         except Exception as e:
             logger.error(f"Error building SQL chain: {str(e)}")

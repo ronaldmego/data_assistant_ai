@@ -10,17 +10,19 @@ class ChatbotPrompts:
     def get_sql_prompt() -> ChatPromptTemplate:
         """Get the SQL generation prompt template"""
         template = """Based on the provided table schema for the selected tables, analyze if the user's question requires a specific SQL query.
-If it's a greeting or general question, return this SQL to get an overview of the selected tables:
-"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name IN ({table_list})"
+    If it's a greeting or general question, return this SQL query without any markdown or formatting:
+    SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name IN ({table_list})
 
-If it's a specific analytical question, write a SQL query that answers it using only the selected tables.
+    If it's a specific analytical question, write a SQL query that answers it using only the selected tables.
 
-Selected Tables Schema:
-{schema}
+    Selected Tables Schema:
+    {schema}
 
-Question: {question}
+    Question: {question}
 
-Write only the SQL query without any additional text:"""
+    IMPORTANT: Write only the raw SQL query without any markdown formatting, backticks, or 'sql' tags. Return just the query text.
+
+    Query:"""
         
         return ChatPromptTemplate.from_template(template)
     
