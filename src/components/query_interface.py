@@ -5,6 +5,11 @@ from src.services.data_processing import handle_query_and_response
 from src.components.visualization import create_visualization
 from src.services.rag_service import process_query_with_rag
 from pathlib import Path
+import logging
+from typing import Dict, Any, Optional
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 def display_rag_status():
     """Display RAG status in the interface"""
@@ -82,13 +87,34 @@ def handle_visualization(df: pd.DataFrame):
     """Create visualization with adjustable height"""
     create_visualization(df)
 
+# components/query_interface.py
+
 def process_query(question: str):
-    """Process a query and display results"""
+    """Process a query and display results with enhanced error handling"""
     with st.spinner('Processing your question...'):
         try:
+            # Validar longitud de la pregunta
+            if len(question) < 3:
+                st.warning("Please enter a longer question")
+                return
+                
             response = handle_query_and_response(question)
             
             if response:
+                # Verificar errores específicos
+                if 'error' in response:
+                    if 'context_length_exceeded' in str(response['error']):
+                        st.error("""
+                        The query is too complex for processing. Try to:
+                        1. Be more specific about the time period
+                        2. Focus on fewer tables
+                        3. Break down your question into smaller parts
+                        """)
+                        return
+                    else:
+                        st.error(f"Error: {response['error']}")
+                        return
+                        
                 # Main response container
                 response_container = st.container()
                 with response_container:
@@ -112,20 +138,21 @@ def process_query(question: str):
                             with sql_expander:
                                 st.code(response.get('query', ''), language='sql')
                     
-                    # Context section (when RAG is enabled)
-                    if st.session_state.get('rag_enabled') and st.session_state.get('rag_initialized'):
-                        if 'last_context' in st.session_state:
-                            with st.expander("📚 Document Context Used", expanded=False):
-                                for idx, ctx in enumerate(st.session_state['last_context'], 1):
-                                    st.write(f"{idx}. {ctx[:200]}...")
-                
-                # Add to history
-                if 'history' not in st.session_state:
-                    st.session_state['history'] = []
-                st.session_state['history'].append(response)
+                    # Add to history
+                    if 'history' not in st.session_state:
+                        st.session_state['history'] = []
+                    st.session_state['history'].append(response)
                 
                 # Separator for better visual organization
                 st.markdown("---")
+                
         except Exception as e:
-            st.error(f"Error processing query: {str(e)}")
-            st.info("Please check your database connection and API keys.")
+            logger.error(f"Error processing query: {str(e)}")
+            st.error("""
+            An error occurred while processing your query. Please try:
+            1. Refreshing the page
+            2. Making your question more specific
+            3. Checking the database connection
+            
+            Error details: {str(e)}
+            """)

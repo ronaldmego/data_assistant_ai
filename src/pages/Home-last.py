@@ -4,6 +4,7 @@ from pathlib import Path
 import streamlit as st
 import logging
 import os
+from typing import List, Dict, Optional
 
 # Añadir el directorio raíz al path de manera robusta
 root_path = Path(__file__).parent.parent.parent
@@ -24,39 +25,50 @@ logger = setup_logging()
 # Importar config
 from config.config import OPENAI_API_KEY, MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_DATABASE
 
-# Importaciones adicionales
-from src.utils.database import get_all_tables, test_database_connection, get_table_info, get_table_columns
-from src.components.debug_panel import display_debug_section
-from src.components.history_view import display_history
-from src.components.query_interface import display_query_interface
-from src.layouts.footer import display_footer
-from src.layouts.header import display_header
-from src.services.rag_service import initialize_rag_components
+@st.cache_data(ttl=300)  # Cache por 5 minutos
+def get_table_columns(table_name: str) -> List[str]:
+    """Get columns for a specific table"""
+    try:
+        from src.utils.database import run_query
+        query = f"SHOW COLUMNS FROM {table_name}"
+        result = run_query(query)
+        return [row[0] for row in result]
+    except Exception as e:
+        logger.error(f"Error getting columns for table {table_name}: {str(e)}")
+        return []
+
+@st.cache_data(ttl=300)
+def get_table_info() -> Dict[str, int]:
+    """Get table information with row counts"""
+    try:
+        from src.utils.database import run_query, get_all_tables
+        tables = get_all_tables()
+        info = {}
+        
+        for table in tables:
+            try:
+                # Usar parámetros para evitar problemas de SQL injection
+                query = f"SELECT COUNT(*) as count FROM `{table}`"
+                result = run_query(query)
+                # Asegurarnos de que tenemos un resultado y es un número
+                count = int(result[0][0]) if result and result[0] else 0
+                info[table] = count
+            except Exception as e:
+                logger.warning(f"Error getting count for table {table}: {str(e)}")
+                info[table] = 0
+                
+        return info
+    except Exception as e:
+        logger.error(f"Error getting table info: {str(e)}")
+        return {}
 
 def initialize_session_state():
     """Initialize all session state variables"""
-    if 'initialized' not in st.session_state:
+    if not st.session_state.get('initialized'):
         logger.info("Initializing session state...")
-        
-        # Load environment variables
-        if not OPENAI_API_KEY:
-            st.error("""
-            ⚠️ OpenAI API Key not found!
-            
-            Please follow these steps:
-            1. Create a .env file in the project root
-            2. Add your OpenAI API key: OPENAI_API_KEY=your_key_here
-            3. Add other required configurations (check .env.example)
-            4. Restart the application
-            """)
-            st.stop()
-            
-        # Initialize other session state variables
         initial_states = {
             'history': [],
             'debug_logs': [],
-            'selected_tables': [],
-            'selected_all': False,
             'OPENAI_API_KEY': OPENAI_API_KEY,
             'DB_CONFIG': {
                 'user': MYSQL_USER,
@@ -64,6 +76,9 @@ def initialize_session_state():
                 'host': MYSQL_HOST,
                 'database': MYSQL_DATABASE
             },
+            'selected_tables': [],
+            'selected_all': False,
+            'table_info': get_table_info(),
             'initialized': True
         }
         
@@ -74,10 +89,6 @@ def initialize_session_state():
 def display_table_selection():
     """Display table selection interface"""
     try:
-        # Asegurarnos de que table_info está en el session state
-        if 'table_info' not in st.session_state:
-            st.session_state['table_info'] = get_table_info()
-            
         table_info = st.session_state.get('table_info', {})
         if not table_info:
             st.sidebar.error("No tables found in database.")
@@ -85,59 +96,58 @@ def display_table_selection():
         
         st.sidebar.write("### 📊 Table Selection")
         
-        # Agregar selector de período
-        st.sidebar.write("#### 📅 Time Period")
-        all_tables = sorted(list(table_info.keys()))
-        
-        # Extraer años y meses únicos
-        years = sorted(list(set([table[-6:-2] for table in all_tables])))
-        
-        selected_year = st.sidebar.selectbox("Select Year", years, index=len(years)-1)
-        
-        # Filtrar tablas por año seleccionado
-        year_tables = [t for t in all_tables if selected_year in t]
-        months = sorted(list(set([table[-2:] for table in year_tables])))
-        
+        # Agregar botones de selección
         col1, col2 = st.sidebar.columns(2)
-        with col1:
-            start_month = st.selectbox("From", months, index=0)
-        with col2:
-            end_month = st.selectbox("To", months, index=len(months)-1)
-            
-        # Filtrar tablas por período seleccionado
-        selected_tables = [
-            table for table in year_tables 
-            if start_month <= table[-2:] <= end_month
-        ]
+        if col1.button("Select All", use_container_width=True):
+            st.session_state['selected_all'] = True
+        if col2.button("Deselect All", use_container_width=True):
+            st.session_state['selected_all'] = False
         
-        # Mostrar información de tablas seleccionadas
+        # Búsqueda de tablas
+        search = st.sidebar.text_input("🔍 Search tables:", "")
+        
+        # Filtrar y ordenar tablas
+        filtered_tables = [
+            table for table in table_info.keys() 
+            if search.lower() in table.lower()
+        ]
+        filtered_tables.sort()
+        
+        selected_tables = []
+        total_rows = 0
+        
+        # Crear contenedor scrolleable
+        with st.sidebar.container():
+            for table in filtered_tables:
+                row_count = table_info[table]
+                if st.checkbox(
+                    f"{table} ({row_count:,} rows)",
+                    value=st.session_state.get('selected_all', False),
+                    key=f"table_{table}"
+                ):
+                    selected_tables.append(table)
+                    total_rows += row_count
+        
+        # Mostrar estadísticas
         if selected_tables:
-            total_rows = sum(table_info.get(table, 0) for table in selected_tables)
-            total_columns = sum(len(get_table_columns(table)) for table in selected_tables)
-            estimated_tokens = total_columns * len(selected_tables) * 50
-            
-            # Información de selección
             st.sidebar.success(
-                f"📊 Selected {len(selected_tables)} tables\n"
-                f"📈 Total rows: {total_rows:,}\n"
-                f"🔢 Total columns: {total_columns}"
+                f"Selected {len(selected_tables)}/{len(table_info)} tables\n"
+                f"Total rows: {total_rows:,}"
             )
             
-            # Warning de tokens si es necesario
+            # Estimación de tokens
+            total_columns = sum(len(get_table_columns(table)) for table in selected_tables)
+            estimated_tokens = total_columns * len(selected_tables) * 50  # estimación aproximada
+            
             if estimated_tokens > 4000:
                 st.sidebar.warning(
-                    f"⚠️ Token Limit Warning\n\n"
+                    "⚠️ **Token Limit Warning**\n\n"
                     f"Estimated tokens: {estimated_tokens:,}\n"
-                    "Try selecting fewer months or tables.",
+                    "Consider reducing selected tables.",
                     icon="⚠️"
                 )
-            
-            # Mostrar tablas seleccionadas en un expander
-            with st.sidebar.expander("📋 Selected Tables", expanded=False):
-                for table in selected_tables:
-                    st.write(f"- {table} ({table_info.get(table, 0):,} rows)")
         else:
-            st.sidebar.warning("No tables selected for the specified period")
+            st.sidebar.warning("No tables selected")
         
         # Guardar en session state
         st.session_state['selected_tables'] = selected_tables
@@ -148,6 +158,24 @@ def display_table_selection():
         logger.error(f"Error in table selection: {str(e)}")
         st.sidebar.error("Error loading tables. Check your database connection.")
         return []
+
+try:
+    # Import components
+    from src.utils.database import get_all_tables, test_database_connection
+    from src.utils.chatbot import generate_sql_chain, generate_response_chain
+    from src.services.data_processing import handle_query_and_response
+    from src.services.rag_service import initialize_rag_components
+    from src.components.debug_panel import display_debug_section
+    from src.components.history_view import display_history
+    from src.components.query_interface import display_query_interface
+    from src.layouts.footer import display_footer
+    from src.layouts.header import display_header
+
+    logger.info("All components loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to import required components: {str(e)}")
+    st.error(f"Failed to import required components: {str(e)}")
+    st.stop()
 
 def main():
     try:
@@ -184,8 +212,6 @@ def main():
             connection_status = test_database_connection()
             if connection_status["success"]:
                 st.sidebar.success("✔️ Connected to database")
-                if connection_status.get("tables"):
-                    st.sidebar.info(f"Available tables: {len(connection_status['tables'])}")
             else:
                 st.sidebar.error(f"❌ Connection error: {connection_status['error']}")
                 return

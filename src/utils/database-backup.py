@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 def test_database_connection() -> Dict:
     """Test database connection and return status"""
     try:
+        # Primero probar conexión básica
         conn = mysql.connector.connect(
             host=MYSQL_HOST,
             user=MYSQL_USER,
@@ -22,6 +23,7 @@ def test_database_connection() -> Dict:
         )
         
         if conn.is_connected():
+            # Si la conexión es exitosa, obtener las tablas
             cursor = conn.cursor()
             cursor.execute("SHOW TABLES")
             tables = [table[0] for table in cursor.fetchall()]
@@ -73,55 +75,8 @@ def get_all_tables() -> List[str]:
         logger.error(f"Error getting tables: {str(e)}")
         return []
 
-def get_table_columns(table_name: str) -> List[str]:
-    """Get column names for a specific table"""
-    try:
-        if not engine:
-            raise Exception("Database engine not initialized")
-        
-        inspector = inspect(engine)
-        columns = [col['name'] for col in inspector.get_columns(table_name)]
-        return columns
-    except Exception as e:
-        logger.error(f"Error getting columns for table {table_name}: {str(e)}")
-        return []
-
-def get_table_info() -> Dict[str, int]:
-    """Get table information with row counts"""
-    try:
-        tables = get_all_tables()
-        info = {}
-        
-        conn = mysql.connector.connect(
-            host=MYSQL_HOST,
-            user=MYSQL_USER,
-            password=MYSQL_PASSWORD,
-            database=MYSQL_DATABASE
-        )
-        
-        for table in tables:
-            try:
-                cursor = conn.cursor()
-                query = f"SELECT COUNT(*) as count FROM `{table}`"
-                cursor.execute(query)
-                result = cursor.fetchone()
-                count = result[0] if result else 0
-                info[table] = count
-                cursor.close()
-                
-            except Exception as e:
-                logger.warning(f"Error getting count for table {table}: {str(e)}")
-                info[table] = 0
-        
-        conn.close()
-        return info
-        
-    except Exception as e:
-        logger.error(f"Error getting table info: {str(e)}")
-        return {}
-
-def get_schema(selected_tables: Optional[List[str]] = None) -> str:
-    """Get schema information for selected tables only"""
+def get_schema(input_data: Optional[dict] = None) -> str:
+    """Get schema information for all tables except ignored ones"""
     try:
         if not db:
             raise Exception("Database connection not initialized")
@@ -129,27 +84,18 @@ def get_schema(selected_tables: Optional[List[str]] = None) -> str:
         all_tables = get_all_tables()
         ignored_tables = get_ignored_tables()
         
-        # Filter out ignored tables
-        available_tables = [table for table in all_tables if table not in ignored_tables]
+        logger.info(f"All tables: {all_tables}")
+        logger.info(f"Ignored tables: {ignored_tables}")
         
-        # If specific tables are selected, use only those
-        if selected_tables:
-            tables_to_use = [table for table in selected_tables if table in available_tables]
-        else:
-            tables_to_use = available_tables
-            
-        logger.info(f"Getting schema for tables: {tables_to_use}")
+        # Filter out ignored tables
+        tables_to_use = [table for table in all_tables if table not in ignored_tables]
+        logger.info(f"Tables to use: {tables_to_use}")
         
         if not tables_to_use:
             return "No tables available for querying."
         
-        # Get schema info for selected tables only
+        # Get schema info for remaining tables
         schema_info = db.get_table_info(table_names=tables_to_use)
-        
-        # Log schema size for debugging
-        token_estimate = len(schema_info.split()) * 1.3  # rough estimate
-        logger.info(f"Estimated schema tokens: {token_estimate}")
-        
         return schema_info
     except Exception as e:
         logger.error(f"Error getting schema information: {str(e)}")

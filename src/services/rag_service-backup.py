@@ -8,11 +8,9 @@ from ..utils.database import get_all_tables, get_schema
 from ..utils.chatbot import generate_sql_chain
 from langchain.memory import ConversationBufferMemory
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-from ..utils.schema_utils import chunk_schema
+from ..utils.schema_utils import analyze_table_name_pattern, get_relevant_tables, chunk_schema
 
 logger = logging.getLogger(__name__)
-
-MAX_TOKENS = 4000  # Establecer un límite seguro de tokens
 
 def initialize_rag_components():
     """Initialize RAG components in session state"""
@@ -23,18 +21,20 @@ def initialize_rag_components():
             if not api_key:
                 logger.warning("OpenAI API key not found in session state")
                 st.session_state['rag_initialized'] = False
-                st.error("OpenAI API key not found.")
                 return
-
-            with st.spinner("Initializing AI components..."):
-                embeddings = initialize_embeddings(api_key)
                 
-                # Load documents
+            embeddings = initialize_embeddings(api_key)
+            
+            # Load documents
+            try:
+                # Get current working directory for reference
                 cwd = Path.cwd()
                 logger.info(f"Current working directory: {cwd}")
                 
+                # Try both relative and absolute paths
                 docs_path = Path("docs")
                 if not docs_path.exists():
+                    # Try looking in the project root
                     docs_path = cwd / "docs"
                     logger.info(f"Trying absolute path: {docs_path}")
                 
@@ -44,42 +44,39 @@ def initialize_rag_components():
                 if not documents:
                     logger.warning("No documents found, RAG will be disabled")
                     st.session_state['rag_initialized'] = False
-                    st.warning("No documents found for enhanced responses.")
                     return
                     
-                # Create vector store
-                vector_store = create_vector_store(documents, embeddings)
-                if not vector_store:
-                    logger.warning("Failed to create vector store")
-                    st.session_state['rag_initialized'] = False
-                    return
-                    
-                # Initialize conversation memory
-                msgs = StreamlitChatMessageHistory(key="langchain_messages")
-                memory = ConversationBufferMemory(
-                    chat_memory=msgs,
-                    memory_key="chat_history",
-                    return_messages=True
-                )
+            except Exception as e:
+                logger.error(f"Error loading documents: {e}")
+                st.session_state['rag_initialized'] = False
+                return
                 
-                # Store in session state
-                st.session_state['vector_store'] = vector_store
-                st.session_state['conversation_memory'] = memory
-                st.session_state['rag_initialized'] = True
-                st.session_state['docs_loaded'] = [str(doc.metadata.get('source', 'Unknown')) for doc in documents]
+            # Create vector store
+            vector_store = create_vector_store(documents, embeddings)
+            if not vector_store:
+                logger.warning("Failed to create vector store")
+                st.session_state['rag_initialized'] = False
+                return
                 
-                logger.info("RAG components initialized successfully")
-                st.success("AI components initialized successfully!")
-                    
+            # Initialize conversation memory
+            msgs = StreamlitChatMessageHistory(key="langchain_messages")
+            memory = ConversationBufferMemory(
+                chat_memory=msgs,
+                memory_key="chat_history",
+                return_messages=True
+            )
+            
+            # Store in session state
+            st.session_state['vector_store'] = vector_store
+            st.session_state['conversation_memory'] = memory
+            st.session_state['rag_initialized'] = True
+            st.session_state['docs_loaded'] = [str(doc.metadata.get('source', 'Unknown')) for doc in documents]
+            
+            logger.info("RAG components initialized successfully")
+                
         except Exception as e:
             logger.error(f"Error initializing RAG components: {e}")
             st.session_state['rag_initialized'] = False
-            st.error(f"Error initializing AI components: {str(e)}")
-
-def estimate_tokens(text: str) -> int:
-    """Estimate number of tokens in text using a simple approximation"""
-    # Aproximación simple: 1 token ≈ 4 caracteres en promedio
-    return len(text) // 4
 
 def process_query_with_rag(question: str) -> Dict:
     """Process query using RAG enhancement"""
@@ -91,62 +88,63 @@ def process_query_with_rag(question: str) -> Dict:
         vector_store = st.session_state.get('vector_store')
         memory = st.session_state.get('conversation_memory')
         
-        # Get context from documents (limitar a 2 para reducir tokens)
+        # Get context from documents (limitar a 3)
         context = []
         if vector_store:
-            context = vector_store.similarity_search(question, k=2)
-        
-        # Get schema for selected tables only
-        selected_tables = st.session_state.get('selected_tables', [])
-        if not selected_tables:
-            return {
-                'question': question,
-                'error': 'No tables selected',
-                'query': "SELECT 1"
-            }
-        
-        # Get filtered schema based on selected tables
-        schema = get_schema(selected_tables)
-        
-        # Estimate tokens
-        estimated_tokens = estimate_tokens(schema)
-        if estimated_tokens > MAX_TOKENS:
-            logger.warning(f"Schema too large ({estimated_tokens} tokens), chunking...")
-            schema_chunks = chunk_schema(schema, max_chunks=3)
-            schema_preview = schema_chunks[0] if schema_chunks else ""
-        else:
-            schema_preview = schema
+            context = vector_store.similarity_search(question, k=3)
             
-        if not schema_preview:
-            logger.error("No schema available")
+        # Get schema and relevant tables
+        table_names = get_all_tables()
+        patterns = analyze_table_name_pattern(table_names)
+        relevant_tables = get_relevant_tables(patterns, question)
+        
+        if not relevant_tables:
+            logger.warning("No relevant tables found, using default schema")
+            schema = get_schema()
+            schema_chunks = [schema] if schema else []
+        else:
+            # Get filtered schema and chunk it
+            schema = get_schema()  # You might want to filter this based on relevant_tables
+            schema_chunks = chunk_schema(schema) if schema else []
+        
+        if not schema_chunks:
+            logger.error("No schema chunks available")
             return {
                 'question': question,
                 'error': 'No schema available',
-                'query': "SELECT 1"
+                'query': "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE();"
             }
+        
+        # Preparar contexto reducido del esquema
+        schema_preview = schema_chunks[0][:2000] if schema_chunks else "No schema available"
         
         # Preparar contexto reducido de documentos
         doc_context = []
         for doc in context:
-            content = doc.page_content[:500]  # Limitar a 500 caracteres por documento
-            doc_context.append(content)
+            # Tomar solo los primeros 500 caracteres de cada documento
+            content = doc.page_content
+            preview = content[:500]
+            if len(content) > 500:
+                preview += "..."
+            doc_context.append(preview)
         
         # Create enhanced prompt with reduced context
         enhanced_prompt = f"""
         Based on:
         - Available Schema Preview: {schema_preview}
-        - Document Context Preview: {doc_context[:1000] if doc_context else 'No additional context'}
+        - Document Context Preview: {doc_context}
         - Question: {question}
         
         Generate an appropriate SQL query that answers the question.
-        Focus on the selected tables: {', '.join(selected_tables)}
+        If you need more detailed schema information, focus on the most recent or relevant tables.
+        The schema may be truncated, so prefer simple queries that don't require full schema details.
         """
         
-        # Generate query
+        # Generate and execute query
         sql_chain = generate_sql_chain()
         query = sql_chain.invoke({"question": enhanced_prompt})
         
-        # Update memory
+        # Update memory if available
         if memory:
             memory.save_context(
                 {"question": question},
@@ -156,7 +154,7 @@ def process_query_with_rag(question: str) -> Dict:
         return {
             'question': question,
             'query': query,
-            'context_used': doc_context[:1],  # Solo usar el primer documento de contexto
+            'context_used': doc_context,  # Usar la versión truncada
             'chat_history': memory.load_memory_variables({}).get('chat_history', '') if memory else ''
         }
         
@@ -165,5 +163,5 @@ def process_query_with_rag(question: str) -> Dict:
         return {
             'question': question,
             'error': str(e),
-            'query': "SELECT 1"
+            'query': "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE();"
         }
