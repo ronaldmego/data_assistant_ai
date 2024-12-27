@@ -37,10 +37,11 @@ class QueryProcessor:
     def _process_with_rag(question: str, selected_tables: List[str]) -> Dict[str, Any]:
         """Process query using RAG enhancement"""
         try:
-            from ...services.rag_service import process_query_with_rag
+            #from ...services.rag_service import process_query_with_rag
+            from ...services.rag_service import RAGService
             
             # Get RAG enhanced query
-            rag_response = process_query_with_rag(question, selected_tables)
+            rag_response = RAGService.process_query(question, selected_tables)
             query = rag_response.get('query', '')
             context_used = rag_response.get('context_used', [])
             st.session_state['last_context'] = context_used

@@ -8,7 +8,8 @@ from src.utils.chatbot.chains import ChainBuilder
 from src.utils.chatbot.query import QueryProcessor
 from src.utils.chatbot.response import ResponseProcessor
 from src.services.state_management import store_debug_log
-from src.services.rag_service import process_query_with_rag
+#from src.services.rag_service import process_query_with_rag
+from src.services.rag_service import RAGService
 
 # Configuración de logging
 logging.basicConfig(

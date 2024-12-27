@@ -63,8 +63,7 @@ try:
     from src.utils.database import get_all_tables, test_database_connection
     from src.utils.chatbot.chains import ChainBuilder
     from src.services.data_processing import handle_query_and_response
-    #from src.services.rag_service import initialize_rag_components
-    from src.services.rag_service import RAGService
+    from src.services.rag_service import initialize_rag_components
     from src.components.debug_panel import display_debug_section
     from src.components.history_view import display_history
     from src.components.query_interface import display_query_interface, display_table_selection, display_model_settings
@@ -99,8 +98,7 @@ def main():
                 return
         
         # Inicializar RAG
-        #initialize_rag_components()
-        RAGService.initialize_components()
+        initialize_rag_components()
         
         # Database connection status
         connection_status = test_database_connection()
