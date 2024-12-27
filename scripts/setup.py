@@ -28,7 +28,12 @@ def install_requirements():
         "python-dotenv",
         "pandas",
         "matplotlib",
-        "seaborn"
+        "seaborn",
+        "faiss-cpu",
+        "pypdf",
+        "requests",
+        "langchain-community[ollama]",
+        "langchain_ollama"
     ]
     
     for package in packages:
