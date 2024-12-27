@@ -1,0 +1,38 @@
+langchain_sql/
+├── .env.example
+├── .gitignore
+├── Data
+│   ├── DATASET_REGISTRO_DE_INCIDENTES.csv
+│   └── readme.md
+├── app.log
+├── config
+│   └── config.py
+├── csv_loader.log
+├── docs
+│   ├── business_rules.txt
+│   └── data_dictionary.pdf
+├── estructura.txt
+├── readme.md
+├── scripts
+│   ├── init_db.py
+│   ├── load.py
+│   └── setup.py
+└── src
+    ├── components
+    │   ├── debug_panel.py
+    │   ├── history_view.py
+    │   ├── query_interface.py
+    │   └── visualization.py
+    ├── layouts
+    │   ├── footer.py
+    │   └── header.py
+    ├── pages
+    │   └── Home.py
+    ├── services
+    │   ├── data_processing.py
+    │   ├── rag_service.py
+    │   └── state_management.py
+    └── utils
+        ├── chatbot.py
+        ├── database.py
+        └── rag_utils.py

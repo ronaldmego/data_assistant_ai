@@ -28,7 +28,9 @@ def install_requirements():
         "python-dotenv",
         "pandas",
         "matplotlib",
-        "seaborn"
+        "seaborn",
+        "faiss-cpu",
+        "pypdf"
     ]
     
     for package in packages:
