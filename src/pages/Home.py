@@ -52,9 +52,9 @@ def initialize_session_state():
     
     # LLM configuration
     if 'llm_provider' not in st.session_state:
-        st.session_state['llm_provider'] = 'openai'
+        st.session_state['llm_provider'] = 'ollama'  # Default to ollama
     if 'llm_model_name' not in st.session_state:
-        st.session_state['llm_model_name'] = None
+        st.session_state['llm_model_name'] = 'llama3:8b-instruct-q8_0'  # Default model
     if 'llm_temperature' not in st.session_state:
         st.session_state['llm_temperature'] = 0.7
 
@@ -78,43 +78,48 @@ except Exception as e:
 
 def main():
     try:
+        # Inicializar session state
+        initialize_session_state()
+        
+        # Header principal
+        display_header()
+        
+        # Sidebar settings
+        st.sidebar.markdown("---")
+        
+        # Model settings section
+        display_model_settings()
+        st.sidebar.markdown("---")
+        
+        # Verificar API key si se usa OpenAI
+        if st.session_state.get('llm_provider') == 'openai':
+            if not st.session_state.get('OPENAI_API_KEY'):
+                st.sidebar.error("⚠️ OpenAI API Key not found. Please check your .env file or switch to Ollama.")
+                return
+        
         # Inicializar RAG
         initialize_rag_components()
         
-        # Crear tabs principales
+        # Database connection status
+        connection_status = test_database_connection()
+        if connection_status["success"]:
+            st.sidebar.success("✔️ Connected to database")
+            if connection_status["tables"]:
+                st.sidebar.info(f"Available tables: {len(connection_status['tables'])}")
+        else:
+            st.sidebar.error(f"❌ Connection error: {connection_status['error']}")
+            return
+        
+        # Table selection
+        selected_tables = display_table_selection()
+        
+        # Main content tabs
         tab1, tab2 = st.tabs(["Chat", "Debug Logs"])
         
         with tab1:
-            # Header principal
-            display_header()
-            
-            # Sidebar - Model Settings
-            st.sidebar.markdown("---")
-            
-            # Verificar API key solo si se usa OpenAI
-            if st.session_state.get('llm_provider') == 'openai' and not st.session_state.get('OPENAI_API_KEY'):
-                st.sidebar.error("⚠️ OpenAI API Key not found. Ollama is recommended.")
-            
-            display_model_settings()
-            st.sidebar.markdown("---")
-            
-            # Mostrar estado de conexión en sidebar
-            connection_status = test_database_connection()
-            if connection_status["success"]:
-                st.sidebar.success("✔️ Connected to database")
-                if connection_status["tables"]:
-                    st.sidebar.info(f"Available tables: {len(connection_status['tables'])}")
-            else:
-                st.sidebar.error(f"❌ Connection error: {connection_status['error']}")
-                return
-            
-            # Selección de tablas en el sidebar
-            selected_tables = display_table_selection()
-            
             # Mostrar la interfaz principal solo si hay tablas seleccionadas
             if selected_tables:
                 st.session_state['selected_tables'] = selected_tables
-                # Interfaz principal de consultas
                 st.markdown("---")  # Separador visual
                 display_query_interface()
                 
@@ -128,7 +133,7 @@ def main():
         with tab2:
             display_debug_section()
         
-        # Mostrar footer
+        # Footer
         display_footer()
             
     except Exception as e:

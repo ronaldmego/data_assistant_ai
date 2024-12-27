@@ -27,15 +27,15 @@ class LLMProvider:
         """
         try:
             if provider == "openai":
-                api_key = kwargs.get('openai_api_key') or st.session_state.get('OPENAI_API_KEY')
-                if not api_key:
-                    raise ValueError("OpenAI API key not found. Please check your .env file or switch to Ollama.")
-                    
-                return ChatOpenAI(
-                    model=model_name or "gpt-4",
-                    temperature=kwargs.get('temperature', 0.7),
-                    openai_api_key=api_key
-                )
+                    api_key = st.session_state.get('OPENAI_API_KEY')
+                    if not api_key:
+                        raise ValueError("OpenAI API key not found in session state")
+                        
+                    return ChatOpenAI(
+                        model=model_name or "gpt-4",
+                        temperature=kwargs.get('temperature', 0.7),
+                        openai_api_key=api_key
+                    )
                 
             elif provider == "ollama":
                 return OllamaLLM(  # Actualizado
