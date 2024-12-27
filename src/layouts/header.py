@@ -14,8 +14,8 @@ def display_header(show_connection_status: bool = True):
     st.markdown(
         """
         <div style='text-align: center;'>
-            <h1>🤖 Quipu AI, your Data Analyst Assistant</h1>
-            <p style='font-size: 1.2em;'>Analyze your data with natural language queries | Analiza tus datos con preguntas en lenguaje natural</p>
+            <h1>Khipu AI 🧮</h1>
+            <p style='font-size: 1.2em; color: #666;'>"Tu asistente de transparencia de datos"</p>
         </div>
         """,
         unsafe_allow_html=True

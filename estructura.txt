@@ -3,6 +3,7 @@ langchain_sql/
 ├── .gitignore
 ├── app.log
 ├── config
+│   ├── config copy.py
 │   └── config.py
 ├── csv_loader.log
 ├── data
@@ -43,9 +44,9 @@ langchain_sql/
 │   └── ReportePCBienes202411.csv
 ├── data_loader.log
 ├── docs
-│   └── Diccionario_Datos_Bienes.pdf
+│   ├── Diccionario_Datos_Bienes.pdf
+│   └── time_series_handling.md
 ├── estructura.txt
-├── generate_requirements.py
 ├── logs
 │   ├── app.log
 │   ├── chatbot.log
@@ -57,6 +58,7 @@ langchain_sql/
 ├── readme.md
 ├── requirements.txt
 ├── scripts
+│   ├── generate_requirements.py
 │   ├── mysql
 │   │   ├── clean_csv.py
 │   │   ├── csv_diagnostic.py
@@ -83,7 +85,15 @@ langchain_sql/
 │   │   ├── rag_service.py
 │   │   └── state_management.py
 │   └── utils
-│       ├── chatbot.py
+│       ├── chatbot
+│       │   ├── __init__.py
+│       │   ├── chains.py
+│       │   ├── insights.py
+│       │   ├── prompts.py
+│       │   ├── query.py
+│       │   └── response.py
 │       ├── database.py
+│       ├── llm_provider copy.py
+│       ├── llm_provider.py
 │       └── rag_utils.py
 └── test_load.log
