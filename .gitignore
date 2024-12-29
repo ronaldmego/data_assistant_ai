@@ -1,12 +1,52 @@
-#Env files
-**/__pycache__*
-*.env**
+# Secrets
+.env
 
-#Ignore csv data files
-*.csv
+# LaTeX temporary files
+*.aux
 *.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.pdf
 
-#folders
-**/venv*
-**/env*
-**/docs*
+# Python temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Docker files
+*.tar
+*.tar.gz
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+config.py
+
+#Ignore Folder or subfolders
+**/utils*
+**/ref*
