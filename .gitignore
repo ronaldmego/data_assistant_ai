@@ -45,8 +45,8 @@ wheels/
 .DS_Store
 
 # Project specific
-config.py
+config/config.py
 
-#Ignore Folder or subfolders
-**/utils*
-**/ref*
+# Ignore Folder or subfolders
+src/utils*
+ref*
