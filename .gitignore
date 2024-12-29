@@ -10,3 +10,7 @@
 **/venv*
 **/env*
 **/docs*
+
+#nuevos ignorados
+**/ref
+**/src/utils/chatbot
