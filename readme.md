@@ -59,15 +59,7 @@ This script will:
 - Guide you through initial configuration
 
 3. **Configure Environment Variables**:
-Create a `.env` file in the project root:
-```env
-OPENAI_API_KEY=your_openai_api_key
-MYSQL_USER=your_mysql_user
-MYSQL_PASSWORD=your_mysql_password
-MYSQL_HOST=your_mysql_host
-MYSQL_DATABASE=your_database_name
-IGNORED_TABLES=table1,table2,table3
-```
+Create a `.env` file in the project root, follow example `.env.example`
 
 ## 💡 Usage
 
