@@ -1,5 +1,10 @@
+#scripts\generate_requirements.py
 from importlib.metadata import version, PackageNotFoundError
 from typing import Dict, List
+from pathlib import Path
+
+# Get the project root directory (parent of scripts directory)
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 
 def get_package_version(package_name: str) -> str:
     """Get package version, handling package name variations"""
@@ -22,6 +27,9 @@ def generate_requirements() -> None:
             "langchain-openai",
             "langchain-community",
             "langchain-ollama",
+            "pydantic",
+            "sqlalchemy",
+            "tiktoken",  # Necesario para OpenAI
         ],
         "Database": [
             "mysql-connector-python",
@@ -43,11 +51,18 @@ def generate_requirements() -> None:
         ],
         "Utilities": [
             "requests",
+            "typing-extensions",
+            "typing-inspect",
+            "tqdm",
         ],
     }
 
+    requirements_file = PROJECT_ROOT / "requirements.txt"
+    
     try:
-        with open('requirements.txt', 'w') as f:
+        print(f"\n📝 Generating requirements.txt in: {requirements_file}")
+        
+        with open(requirements_file, 'w') as f:
             for category, pkg_list in packages.items():
                 # Añadir comentario de categoría
                 f.write(f"# {category}\n")
@@ -63,7 +78,7 @@ def generate_requirements() -> None:
                         else:
                             f.write(f"{package}>={version_str}\n")
                     else:
-                        print(f"Warning: Version not found for {package}")
+                        print(f"⚠️ Warning: Version not found for {package}")
                         f.write(f"{package}\n")
                 
                 # Añadir línea en blanco entre categorías

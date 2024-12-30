@@ -1,16 +1,52 @@
-#Env files
-**/__pycache__*
-*.env**
+# Environment and secrets
+.env
+.env.*
+!.env.example
 
-#Ignore csv data files
-*.csv
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+
+# Logs and data
 *.log
+logs/
+data/
+!data/.gitkeep
 
-#folders
-**/venv*
-**/env*
-**/docs*
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
 
-#nuevos ignorados
-**/ref
-**/src/utils/chatbot
+# Database
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+!scripts/mysql/*.sql
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.pdf
+
+# Docker
+*.tar
+*.tar.gz
