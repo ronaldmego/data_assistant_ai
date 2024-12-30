@@ -14,8 +14,8 @@ from config.config import OPENAI_API_KEY, MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST
 
 # Configuración inicial de la página
 st.set_page_config(
-    page_title="Khipu AI 🧮",
-    page_icon="🧮",
+    page_title="Khipu AI 📊",
+    page_icon="📊",
     layout="wide"
 )
 
