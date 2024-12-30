@@ -32,6 +32,7 @@ data/
 .DS_Store
 
 # Database
+*.csv
 *.sqlite
 *.sqlite3
 *.db
