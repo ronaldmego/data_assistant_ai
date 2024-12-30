@@ -69,35 +69,6 @@ MYSQL_DATABASE=your_database_name
 IGNORED_TABLES=table1,table2,table3
 ```
 
-## 📁 Project Structure
-
-```
-data_assistant_ai/
-├── config/                 # Configuration settings
-├── data/                  # Dataset storage
-├── scripts/               # Utility scripts
-│   ├── init_db.py        # Database initialization
-│   ├── load.py           # Data loader
-│   └── setup.py          # Installation script
-└── src/
-    ├── components/        # UI Components
-    │   ├── debug_panel.py
-    │   ├── history_view.py
-    │   ├── query_interface.py
-    │   └── visualization.py
-    ├── layouts/           # Page layouts
-    │   ├── footer.py
-    │   └── header.py
-    ├── pages/            # Application pages
-    │   └── Home.py
-    ├── services/         # Business logic
-    │   ├── data_processing.py
-    │   └── state_management.py
-    └── utils/            # Utilities
-        ├── chatbot.py    # NLP processing
-        └── database.py   # Database operations
-```
-
 ## 💡 Usage
 
 1. **Start the Application**:
